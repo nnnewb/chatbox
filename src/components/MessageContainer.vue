@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import SingleMessage from "@/components/SingleMessage.vue";
+import type { Message } from "@/lib";
 
-defineProps<{
-  messages: {
-    role: "user" | "assistant";
-    content: string;
-  }[];
-}>();
+defineProps<{ messages: Message[] }>();
 </script>
 
 <template>
   <div class="message-container">
-    <single-message v-for="m in messages" :role="m.role" :content="m.content" />
+    <single-message v-for="m in messages" :message="m" />
   </div>
 </template>
 

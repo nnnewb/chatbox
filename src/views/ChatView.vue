@@ -1,22 +1,13 @@
 <script setup lang="ts">
 import MessageContainer from "@/components/MessageContainer.vue";
+import type { Message } from "@/lib";
 import { useConfigStore } from "@/stores/config";
 import { Promotion } from "@element-plus/icons-vue";
 import { ElButton, ElInput, ElText } from "element-plus";
 import { Ollama } from "ollama";
 import { reactive, ref } from "vue";
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
-
-const messages = reactive<Message[]>([
-  {
-    role: "user",
-    content: "你好",
-  },
-]);
+const messages = reactive<Message[]>([]);
 const user_input = ref("");
 const cfg = useConfigStore();
 const o = new Ollama({ host: cfg.host });
@@ -34,7 +25,7 @@ async function handleKeyDown(e: KeyboardEvent) {
 async function handleSend() {
   pending.value = true;
   try {
-    messages.push({ role: "user", content: user_input.value });
+    messages.push({ id: cfg.incr(), role: "user", created_at: new Date(), content: user_input.value });
 
     const resp = await o.chat({
       messages: messages,
@@ -42,11 +33,27 @@ async function handleSend() {
       stream: true,
     });
 
-    const m = reactive<Message>({ role: "assistant", content: "" });
-    messages.push(m);
+    const m = reactive<Message>({ id: cfg.incr(), done: false, role: "assistant", content: "" });
+    const pos = messages.push(m);
     for await (const chunk of resp) {
       m.content = m.content + chunk.message.content;
-      console.log(m.content);
+      if (chunk.done) {
+        messages[pos - 1] = {
+          id: m.id,
+          role: "assistant",
+          done: true,
+          content: m.content,
+          created_at: chunk.created_at,
+          model: chunk.model,
+          done_reason: chunk.done_reason,
+          total_duration: chunk.total_duration,
+          load_duration: chunk.load_duration,
+          eval_count: chunk.eval_count,
+          eval_duration: chunk.eval_duration,
+          prompt_eval_count: chunk.prompt_eval_count,
+          prompt_eval_duration: chunk.prompt_eval_duration,
+        };
+      }
     }
 
     user_input.value = "";
